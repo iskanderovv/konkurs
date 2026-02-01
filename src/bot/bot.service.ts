@@ -1438,7 +1438,11 @@ Savollar va takliflar uchun:
     private async startBot() {
         try {
             const webhookUrl = this.configService.get<string>('bot.webhookUrl');
-            const botInfo = await this.bot.api.getMe();
+
+            // Initialization requires awaiting init() to set botInfo internally
+            await this.bot.init();
+
+            const botInfo = this.bot.botInfo;
             this.logger.log(`🤖 Bot: @${botInfo.username}`);
 
             if (webhookUrl) {
