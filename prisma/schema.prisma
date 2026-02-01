@@ -1,0 +1,109 @@
+// This is your Prisma schema file
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==================== MODELS ====================
+
+model User {
+  id            Int       @id @default(autoincrement())
+  telegramId    BigInt    @unique
+  username      String?
+  firstName     String
+  lastName      String?
+  phone         String
+  referralCode  String    @unique
+  referredById  Int?
+  referredBy    User?     @relation("Referrals", fields: [referredById], references: [id])
+  referrals     User[]    @relation("Referrals")
+  points        Int       @default(0)
+  isParticipant Boolean   @default(false)
+  isBanned      Boolean   @default(false)
+  banReason     String?
+  hasReceivedSubscriptionBonus Boolean @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  pointHistory PointHistory[]
+
+  @@index([telegramId])
+  @@index([referralCode])
+  @@index([points(sort: Desc)])
+}
+
+model Channel {
+  id        Int      @id @default(autoincrement())
+  channelId String   @unique // @username yoki -100xxx (chat_id)
+  title     String
+  isPrivate Boolean  @default(false)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive])
+}
+
+model Contest {
+  id          Int      @id @default(autoincrement())
+  title       String
+  description String   @db.Text
+  prizes      String   @db.Text
+  imageUrl    String?
+  endDate     DateTime
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model PointHistory {
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amount     Int
+  reason     String // "referral", "bonus", "admin"
+  referralId Int? // Taklif qilingan user ID (agar referral bo'lsa)
+  note       String?
+  createdAt  DateTime @default(now())
+
+  @@index([userId])
+  @@index([createdAt(sort: Desc)])
+}
+
+model Admin {
+  id         Int      @id @default(autoincrement())
+  telegramId BigInt   @unique
+  username   String?
+  firstName  String
+  isSuper    Boolean  @default(false)
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([telegramId])
+}
+
+model Settings {
+  id        Int      @id @default(autoincrement())
+  key       String   @unique
+  value     String   @db.Text
+  updatedAt DateTime @updatedAt
+
+  @@index([key])
+}
+
+model BroadcastLog {
+  id          Int      @id @default(autoincrement())
+  adminId     BigInt
+  messageType String // "text", "photo", "video"
+  content     String   @db.Text
+  sentCount   Int      @default(0)
+  failedCount Int      @default(0)
+  createdAt   DateTime @default(now())
+}
