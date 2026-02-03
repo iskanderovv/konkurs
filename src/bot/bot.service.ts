@@ -738,10 +738,17 @@ export class BotService implements OnModuleInit, OnModuleDestroy {
         keyboard.text('➕ Kanal qo\'shish', 'add_channel').row();
         keyboard.text(`${EMOJI.BACK} Orqaga`, 'admin_back');
 
-        await ctx.editMessageText(text, {
-            reply_markup: keyboard,
-            parse_mode: 'HTML',
-        });
+        try {
+            await ctx.editMessageText(text, {
+                reply_markup: keyboard,
+                parse_mode: 'HTML',
+            });
+        } catch (error: any) {
+            // "message is not modified" xatosini e'tiborsiz qoldirish
+            if (!error?.message?.includes('message is not modified')) {
+                throw error;
+            }
+        }
     }
 
     private async showAdminContest(ctx: BotContext) {
@@ -1248,12 +1255,16 @@ Savollar va takliflar uchun:
 
         // Admin tekshirmasdan o'tadi
         if (this.isAdmin(telegramId)) {
+            this.logger.log(`Admin tekshiruvdan o'tdi: ${telegramId}`);
             return action();
         }
 
         // Faol kanallar bormi tekshirish
         const channels = await this.channelService.getActiveChannels();
+        this.logger.log(`Faol kanallar soni: ${channels.length}, Kanallar: ${JSON.stringify(channels.map(c => ({ id: c.id, title: c.title, isActive: c.isActive })))}`);
+
         if (channels.length === 0) {
+            this.logger.log('Faol kanallar yo\'q, to\'g\'ridan-to\'g\'ri action bajarilmoqda');
             return action();
         }
 
