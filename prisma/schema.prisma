@@ -39,13 +39,14 @@ model User {
 }
 
 model Channel {
-  id        Int      @id @default(autoincrement())
-  channelId String   @unique // @username yoki -100xxx (chat_id)
-  title     String
-  isPrivate Boolean  @default(false)
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id         Int      @id @default(autoincrement())
+  channelId  String   @unique // @username yoki -100xxx (chat_id)
+  title      String
+  inviteLink String?  // Xususiy kanallar uchun invite link
+  isPrivate  Boolean  @default(false)
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   @@index([isActive])
 }

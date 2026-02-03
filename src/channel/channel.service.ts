@@ -35,12 +35,14 @@ export class ChannelService {
         channelId: string;
         title: string;
         isPrivate?: boolean;
+        inviteLink?: string;
     }): Promise<Channel> {
         const channel = await this.prisma.channel.create({
             data: {
                 channelId: data.channelId,
                 title: data.title,
                 isPrivate: data.isPrivate || false,
+                inviteLink: data.inviteLink,
             },
         });
 
@@ -112,13 +114,32 @@ export class ChannelService {
     /**
      * Kanal ma'lumotlarini Telegram API orqali olish
      */
-    async getChannelInfo(bot: Bot, channelId: string): Promise<{ title: string; isPrivate: boolean } | null> {
+    async getChannelInfo(bot: Bot, channelId: string): Promise<{ title: string; isPrivate: boolean; inviteLink?: string } | null> {
         try {
             const chat = await bot.api.getChat(channelId);
+
+            let inviteLink: string | undefined;
+
+            // Agar kanal chat ID bilan qo'shilgan bo'lsa, invite link olish
+            if (channelId.startsWith('-100') || channelId.startsWith('-')) {
+                try {
+                    // Mavjud invite linkni olishga harakat qilish
+                    if ('invite_link' in chat && chat.invite_link) {
+                        inviteLink = chat.invite_link;
+                    } else {
+                        // Yangi invite link yaratish
+                        const link = await bot.api.createChatInviteLink(channelId);
+                        inviteLink = link.invite_link;
+                    }
+                } catch (linkError) {
+                    this.logger.warn(`Invite link olishda xatolik: ${channelId}`, linkError);
+                }
+            }
 
             return {
                 title: 'title' in chat ? chat.title || 'Noma\'lum' : 'Noma\'lum',
                 isPrivate: chat.type === 'supergroup' || chat.type === 'channel',
+                inviteLink,
             };
         } catch (error) {
             this.logger.error(`Kanal ma'lumotlarini olishda xatolik: ${channelId}`, error);

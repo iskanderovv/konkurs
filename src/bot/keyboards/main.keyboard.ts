@@ -36,9 +36,13 @@ export const getChannelsKeyboard = (channels: Channel[]): InlineKeyboard => {
     channels.forEach((channel, index) => {
         let channelLink: string;
 
-        if (channel.channelId.startsWith('@')) {
+        // Agar inviteLink mavjud bo'lsa, uni ishlatish (xususiy kanallar uchun)
+        if (channel.inviteLink) {
+            channelLink = channel.inviteLink;
+        } else if (channel.channelId.startsWith('@')) {
             channelLink = `https://t.me/${channel.channelId.slice(1)}`;
         } else if (channel.channelId.startsWith('-100')) {
+            // Chat ID bilan qo'shilgan kanallar uchun t.me/c/ formatidan foydalanish
             channelLink = `https://t.me/c/${channel.channelId.replace('-100', '')}`;
         } else {
             channelLink = `https://t.me/${channel.channelId}`;

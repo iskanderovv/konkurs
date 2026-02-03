@@ -953,6 +953,7 @@ Savollar va takliflar uchun:
                 channelId,
                 title: channelInfo.title,
                 isPrivate: channelInfo.isPrivate,
+                inviteLink: channelInfo.inviteLink,
             });
 
             ctx.session.adminStep = undefined;
