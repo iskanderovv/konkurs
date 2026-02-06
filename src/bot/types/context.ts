@@ -42,6 +42,9 @@ export interface SessionData {
         imageUrl?: string;
         endDate?: Date;
     };
+
+    // Channel adding flow
+    tempInviteLink?: string;
 }
 
 // Bot context turi

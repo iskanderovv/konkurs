@@ -912,19 +912,34 @@ Savollar va takliflar uchun:
         try {
             let channelId = input.trim();
 
-            // Link formatini parse qilish
+            // 1. Private Invite Link ni aniqlash (t.me/+)
+            if (channelId.includes('t.me/+')) {
+                // Linkni sessiyaga saqlash
+                const match = channelId.match(/(https?:\/\/)?t\.me\/\+[a-zA-Z0-9_-]+/);
+                if (match) {
+                    ctx.session.tempInviteLink = match[0];
+                    return ctx.reply(
+                        `${EMOJI.CHECK} <b>Havola qabul qilindi!</b>\n\n` +
+                        `Endi kanalning ID raqamini yuboring (masalan: <code>-1001234567890</code>).\n` +
+                        `Kanal ID sini @GetIDsBot yoki shunga o'xshash botlar orqali olishingiz mumkin.\n\n` +
+                        `<i>Eslatma: Bot kanalda admin bo'lishi shart!</i>`,
+                        { reply_markup: getCancelKeyboard(), parse_mode: 'HTML' }
+                    );
+                }
+            }
+
+            // Link formatini parse qilish (username uchun)
             if (channelId.includes('t.me/')) {
                 const match = channelId.match(/t\.me\/([+\w]+)/);
                 if (match) {
                     const extracted = match[1];
-                    // Invite link (+) bo'lsa - bu ishlamaydi
+                    // Agar + bilan boshlansa, bu invite link (yuqorida handle qilinmagan bo'lsa)
                     if (extracted.startsWith('+')) {
+                        // Bu yerga kelmasligi kerak lekin har ehtimolga qarshi
+                        ctx.session.tempInviteLink = `https://t.me/${extracted}`;
                         return ctx.reply(
-                            `${EMOJI.CROSS} <b>Invite link qo'llab-quvvatlanmaydi!</b>\n\n` +
-                            `Iltimos, quyidagilardan birini yuboring:\n` +
-                            `• Username: <code>@kanal_username</code>\n` +
-                            `• Kanal ID: <code>-1001234567890</code>\n\n` +
-                            `<i>Bot kanalda admin bo'lishi kerak!</i>`,
+                            `${EMOJI.CHECK} <b>Havola qabul qilindi!</b>\n\n` +
+                            `Endi kanalning ID raqamini yuboring.`,
                             { reply_markup: getCancelKeyboard(), parse_mode: 'HTML' }
                         );
                     }
@@ -949,6 +964,11 @@ Savollar va takliflar uchun:
                 return ctx.reply(MESSAGES.CHANNEL_NOT_FOUND, { reply_markup: getCancelKeyboard() });
             }
 
+            // Agar sessiyada invite link bo'lsa, undan foydalanamiz
+            if (ctx.session.tempInviteLink) {
+                channelInfo.inviteLink = ctx.session.tempInviteLink;
+            }
+
             await this.channelService.addChannel({
                 channelId,
                 title: channelInfo.title,
@@ -957,6 +977,7 @@ Savollar va takliflar uchun:
             });
 
             ctx.session.adminStep = undefined;
+            ctx.session.tempInviteLink = undefined;
 
             await ctx.reply(MESSAGES.CHANNEL_ADDED(channelInfo.title), {
                 reply_markup: getAdminMenuKeyboard(),
