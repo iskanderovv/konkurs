@@ -180,6 +180,22 @@ export class ChannelService {
         }
     }
 
+
+    /**
+     * Kanal linkini yangilash (agar yo'q bo'lsa yoki eskirgan bo'lsa)
+     */
+    async refreshChannelLink(bot: Bot, channelId: string): Promise<string | null> {
+        const info = await this.getChannelInfo(bot, channelId);
+        if (info && info.inviteLink) {
+            await this.prisma.channel.update({
+                where: { channelId },
+                data: { inviteLink: info.inviteLink, isPrivate: info.isPrivate },
+            });
+            return info.inviteLink;
+        }
+        return null;
+    }
+
     /**
      * Kanal ID orqali topish
      */

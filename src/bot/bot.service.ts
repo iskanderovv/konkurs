@@ -15,9 +15,8 @@ import {
     getMainMenuKeyboard,
     getPhoneKeyboard,
     getChannelsKeyboard,
-    getAdminMenuKeyboard,
-    getAdminContestKeyboard,
     getAdminChannelsKeyboard,
+    getAdminMenuKeyboard,
     getCancelKeyboard,
     getReferralKeyboard,
 } from './keyboards';
@@ -713,30 +712,39 @@ export class BotService implements OnModuleInit, OnModuleDestroy {
     }
 
     private async showAdminChannels(ctx: BotContext) {
+        // Avval kanallar linklarini tekshirish va yangilash
+        const existingChannels = await this.channelService.getAllChannels();
+
+        // Linki yo'q kanallarni yangilashga harakat qilish
+        for (const ch of existingChannels) {
+            if (!ch.inviteLink) {
+                try {
+                    await this.channelService.refreshChannelLink(this.bot, ch.channelId);
+                } catch (e) {
+                    this.logger.warn(`Kanal linkini yangilashda xatolik: ${ch.channelId}`);
+                }
+            }
+        }
+
+        // Yangilangan ro'yxatni olish
         const channels = await this.channelService.getAllChannels();
 
         let text = `${EMOJI.CHANNEL} <b>Kanallar ro'yxati</b>\n\n`;
         if (channels.length === 0) {
             text += "Hozircha kanallar yo'q.";
         } else {
+            text += "Kanallarni boshqarish uchun tugmalardan foydalaning:\n\n";
             channels.forEach((ch, i) => {
                 const status = ch.isActive ? EMOJI.CHECK : EMOJI.CROSS;
                 const type = ch.isPrivate ? '🔒' : '🌐';
-                text += `${i + 1}. ${status} ${type} ${ch.title}\n`;
+                // Link holatini ham ko'rsatish
+                const linkStatus = ch.inviteLink ? '' : ' (⚠️ Link yo\'q)';
+
+                text += `${i + 1}. ${status} ${type} ${ch.title}${linkStatus}\n`;
             });
         }
 
-        const keyboard = new InlineKeyboard();
-
-        channels.forEach((ch) => {
-            const status = ch.isActive ? '🟢' : '🔴';
-            keyboard.text(`${status} ${ch.title.slice(0, 15)}`, `toggle_channel_${ch.id}`);
-            keyboard.text('🗑', `delete_channel_${ch.id}`);
-            keyboard.row();
-        });
-
-        keyboard.text('➕ Kanal qo\'shish', 'add_channel').row();
-        keyboard.text(`${EMOJI.BACK} Orqaga`, 'admin_back');
+        const keyboard = getAdminChannelsKeyboard(channels);
 
         try {
             await ctx.editMessageText(text, {

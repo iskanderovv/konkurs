@@ -42,9 +42,11 @@ export const getChannelsKeyboard = (channels: Channel[]): InlineKeyboard => {
         } else if (channel.channelId.startsWith('@')) {
             channelLink = `https://t.me/${channel.channelId.slice(1)}`;
         } else {
-            // Agar invite link bo'lmasa va username bo'lmasa, havola ishlamaydi
-            // t.me/c/ havolasi faqat a'zolar uchun ishlaydi, shuning uchun uni olib tashlaymiz
-            channelLink = 'https://t.me/';
+            // Link yo'q bo'lsa, noto'g'ri URL ("https://t.me/") qaytarmaslik kerak
+            // Chunki bu telegram.org ga olib boradi
+            // Vaqtinchalik yechim: kanal ID sini ko'rsatish (ishlamaydigan link bo'lsa ham)
+            // Yoki agar bu private kanal bo'lsa va linki yo'q bo'lsa, admin panelda yangilash kerak
+            channelLink = 'https://t.me/telegram'; // Default xavfsiz link
         }
 
         keyboard.url(`${index + 1}. ${channel.title}`, channelLink).row();
@@ -101,8 +103,12 @@ export const getAdminChannelsKeyboard = (channels: Channel[]): InlineKeyboard =>
     const keyboard = new InlineKeyboard();
 
     channels.forEach((channel) => {
-        const status = channel.isActive ? EMOJI.CHECK : EMOJI.CROSS;
-        keyboard.text(`${status} ${channel.title}`, `toggle_channel_${channel.id}`).row();
+        const status = channel.isActive ? '🟢' : '🔴';
+        const type = channel.isPrivate ? '🔒' : '🌐';
+        // Toggle va Delete tugmalari bir qatorda
+        keyboard.text(`${status} ${type} ${channel.title.slice(0, 15)}`, `toggle_channel_${channel.id}`);
+        keyboard.text('🗑', `delete_channel_${channel.id}`);
+        keyboard.row();
     });
 
     keyboard
