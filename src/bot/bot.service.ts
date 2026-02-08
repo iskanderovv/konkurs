@@ -911,11 +911,12 @@ Savollar va takliflar uchun:
     private async handleAddChannel(ctx: BotContext, input: string) {
         try {
             let channelId = input.trim();
+            this.logger.log(`Kanal qo'shish urinishi: ${channelId}`);
 
-            // 1. Private Invite Link ni aniqlash (t.me/+)
-            if (channelId.includes('t.me/+')) {
+            // 1. Private Invite Link ni aniqlash (t.me/+...)
+            if (channelId.includes('t.me/+') || channelId.includes('joinchat')) {
                 // Linkni sessiyaga saqlash
-                const match = channelId.match(/(https?:\/\/)?t\.me\/\+[a-zA-Z0-9_-]+/);
+                const match = channelId.match(/(https?:\/\/)?t\.me\/(\+|joinchat\/)[a-zA-Z0-9_-]+/);
                 if (match) {
                     ctx.session.tempInviteLink = match[0];
                     return ctx.reply(
@@ -928,18 +929,17 @@ Savollar va takliflar uchun:
                 }
             }
 
-            // Link formatini parse qilish (username uchun)
+            // Public Link formatini parse qilish (t.me/username)
             if (channelId.includes('t.me/')) {
-                const match = channelId.match(/t\.me\/([+\w]+)/);
+                const match = channelId.match(/t\.me\/([a-zA-Z0-9_]+)/);
                 if (match) {
                     const extracted = match[1];
-                    // Agar + bilan boshlansa, bu invite link (yuqorida handle qilinmagan bo'lsa)
+                    // Agar + bilan boshlansa, bu yuqorida handle qilinmagan invite link bo'lishi mumkin
                     if (extracted.startsWith('+')) {
-                        // Bu yerga kelmasligi kerak lekin har ehtimolga qarshi
                         ctx.session.tempInviteLink = `https://t.me/${extracted}`;
                         return ctx.reply(
                             `${EMOJI.CHECK} <b>Havola qabul qilindi!</b>\n\n` +
-                            `Endi kanalning ID raqamini yuboring.`,
+                            `Endi kanalning ID raqamini yuboring (masalan: <code>-100...</code>).`,
                             { reply_markup: getCancelKeyboard(), parse_mode: 'HTML' }
                         );
                     }
@@ -947,10 +947,23 @@ Savollar va takliflar uchun:
                 }
             }
 
-            // @ qo'shish (agar yo'q bo'lsa va raqam bilan boshlanmasa)
-            if (!channelId.startsWith('@') && !channelId.startsWith('-')) {
+            // ID va Username ni farqlash
+            // Agar raqam bo'lsa va -100 bilan boshlansa -> ID
+            // Agar @ bilan boshlansa -> Username
+            // Agar harf bilan boshlansa -> Username (@ qo'shamiz)
+
+            if (/^-100\d+$/.test(channelId)) {
+                // Bu to'g'ri kanal IDsi
+            } else if (channelId.startsWith('@')) {
+                // To'g'ri username
+            } else if (/^[a-zA-Z0-9_]+$/.test(channelId)) {
+                // Username @ siz kiritilgan
                 channelId = `@${channelId}`;
+            } else {
+                // Noto'g'ri format, lekin ehtimol ID dir, shunday qoldiramiz, API o'zi xato qaytaradi
             }
+
+            this.logger.log(`Kanal ID/Username aniqlandi: ${channelId}`);
 
             // Mavjudligini tekshirish
             const existing = await this.channelService.findByChannelId(channelId);
@@ -960,11 +973,19 @@ Savollar va takliflar uchun:
 
             // Kanal ma'lumotlarini olish
             const channelInfo = await this.channelService.getChannelInfo(this.bot, channelId);
+
             if (!channelInfo) {
-                return ctx.reply(MESSAGES.CHANNEL_NOT_FOUND, { reply_markup: getCancelKeyboard() });
+                return ctx.reply(
+                    `${MESSAGES.CHANNEL_NOT_FOUND}\n\n` +
+                    `Mumkin bo'lgan sabablar:\n` +
+                    `1. Bot kanalda admin emas\n` +
+                    `2. Kanal ID yoki username noto'g'ri\n` +
+                    `3. Private kanal uchun oldin invite link yuborilmagan`,
+                    { reply_markup: getCancelKeyboard() }
+                );
             }
 
-            // Agar sessiyada invite link bo'lsa, undan foydalanamiz
+            // Agar sessiyada invite link bo'lsa, undan foydalanamiz (Private kanallar uchun)
             if (ctx.session.tempInviteLink) {
                 channelInfo.inviteLink = ctx.session.tempInviteLink;
             }
